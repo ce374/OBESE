@@ -182,47 +182,113 @@ export async function importWorkspaceZip(
     return lastFolder;
   };
 
-  for (const entry of entries) {
-    // Skip the workspace-name top folder entry itself.
-    let name = entry.name;
-    if (prefix && name.startsWith(prefix)) name = name.slice(prefix.length);
+  // Split entries: folders + binary assets (pass 1) vs text files (pass 2).
+  // This lets us rewrite path-based asset references in notes to asset:<id>
+  // after all binary assets have been imported.
+  const folderEntries = entries.filter((e) => e.dir);
+  const fileEntries = entries.filter((e) => !e.dir);
+  const binaryAssetExt = [
+    "jpg",
+    "jpeg",
+    "png",
+    "gif",
+    "webp",
+    "flac",
+    "opus",
+    "webm",
+    "mp3",
+    "m4a",
+    "pdf",
+  ];
+
+  // Map of asset path (relative to workspace root) -> imported node id.
+  // Also map by bare filename for loose matching.
+  const assetPathToId = new Map<string, string>();
+  const assetNameToId = new Map<string, string>();
+
+  // Helper to strip the workspace-name prefix from an entry name.
+  const stripPrefix = (raw: string): string => {
+    let n = raw;
+    if (prefix && n.startsWith(prefix)) n = n.slice(prefix.length);
+    return n;
+  };
+
+  // ---- Pass 1: folders + binary assets ----
+  for (const entry of folderEntries) {
+    const name = stripPrefix(entry.name).replace(/\/$/, "");
     if (!name) continue;
-    // Normalize trailing slash for directories.
-    if (entry.dir) {
-      const dirPath = name.replace(/\/$/, "");
-      if (!dirPath) continue;
-      await getOrCreateFolder(dirPath);
-      continue;
-    }
-    // It's a file. Determine parent folder path.
+    await getOrCreateFolder(name);
+  }
+
+  for (const entry of fileEntries) {
+    const name = stripPrefix(entry.name);
+    if (!name) continue;
     const lastSlash = name.lastIndexOf("/");
     const parentPath = lastSlash > 0 ? name.slice(0, lastSlash) : "";
     const fileName = lastSlash > 0 ? name.slice(lastSlash + 1) : name;
     if (!fileName) continue;
+    const ext = getExtension(fileName);
+    if (!binaryAssetExt.includes(ext)) continue;
     const parentFolder = await getOrCreateFolder(parentPath);
     const parentId = parentFolder ? parentFolder.id : null;
+    const bytes = await entry.async("uint8array");
+    const mimeGuess = guessMime(ext);
+    const node = await ingestBinary(parentId, fileName, bytes, mimeGuess);
+    importedCount++;
+    // Record mappings (path relative to workspace root, and bare filename).
+    assetPathToId.set(name, node.id);
+    assetNameToId.set(fileName, node.id);
+  }
 
-    const insideAssets = isAssetPath(name);
+  // Rewrite path-based asset references in markdown text to asset:<id>.
+  // Matches ![alt](path) and [text](path) where path is a relative file path
+  // (not http/data/mailto/asset:).
+  const rewriteRefs = (text: string): string => {
+    return text.replace(
+      /(!?\[([^\]]*)\]\()([^)]+)(\))/g,
+      (full, pre, alt, url, post) => {
+        const trimmed = url.trim();
+        if (
+          /^(https?:|data:|mailto:|tel:|asset:)/i.test(trimmed) ||
+          trimmed.startsWith("#")
+        ) {
+          return full;
+        }
+        // Normalize the path: strip leading ./ and /
+        let p = trimmed.replace(/^\.\//, "").replace(/^\//, "");
+        // Try exact path match.
+        if (assetPathToId.has(p)) {
+          return `${pre}asset:${assetPathToId.get(p)}${post}`;
+        }
+        // Try matching by bare filename.
+        const base = p.split("/").pop() || p;
+        if (assetNameToId.has(base)) {
+          return `${pre}asset:${assetNameToId.get(base)}${post}`;
+        }
+        return full;
+      }
+    );
+  };
+
+  // ---- Pass 2: text/markdown notes ----
+  for (const entry of fileEntries) {
+    const name = stripPrefix(entry.name);
+    if (!name) continue;
+    const lastSlash = name.lastIndexOf("/");
+    const parentPath = lastSlash > 0 ? name.slice(0, lastSlash) : "";
+    const fileName = lastSlash > 0 ? name.slice(lastSlash + 1) : name;
+    if (!fileName) continue;
     const ext = getExtension(fileName);
-    const isBinaryAsset =
-      ["jpg", "jpeg", "png", "gif", "webp", "flac", "opus", "webm", "mp3", "m4a", "pdf"].includes(
-        ext
-      );
-
-    if (isBinaryAsset) {
-      const bytes = await entry.async("uint8array");
-      const mimeGuess = guessMime(ext);
-      await ingestBinary(parentId, fileName, bytes, mimeGuess);
-      importedCount++;
-    } else {
-      // Text content (md, txt, or unknown).
-      const text = await entry.async("string");
-      // Decide if it's an asset document or a note.
-      const { assetKind } = classifyFile(fileName, null, insideAssets);
-      const asAsset = assetKind === "document";
-      await ingestText(parentId, fileName, text, asAsset);
-      importedCount++;
-    }
+    if (binaryAssetExt.includes(ext)) continue;
+    const parentFolder = await getOrCreateFolder(parentPath);
+    const parentId = parentFolder ? parentFolder.id : null;
+    const insideAssets = isAssetPath(name);
+    const rawText = await entry.async("string");
+    const text = rewriteRefs(rawText);
+    const { assetKind } = classifyFile(fileName, null, insideAssets);
+    const asAsset = assetKind === "document";
+    await ingestText(parentId, fileName, text, asAsset);
+    importedCount++;
   }
 
   return { workspace, importedCount };
