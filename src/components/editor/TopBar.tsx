@@ -27,6 +27,7 @@ import {
 import { ConfirmDialog } from "@/components/workspace/ConfirmDialog";
 import { importWorkspaceZip, exportWorkspaceZip } from "@/lib/zip";
 import { getWorkspaceNodes } from "@/lib/fileSystem";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { toast } from "sonner";
 
 export function TopBar() {
@@ -140,6 +141,8 @@ export function TopBar() {
 
       <div className="flex-1" />
 
+      <ThemeToggle />
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -149,7 +152,7 @@ export function TopBar() {
             <MoreHorizontal className="h-4 w-4" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="rounded-lg w-56">
+        <DropdownMenuContent align="end" className="rounded-md w-56">
           <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
             Workspaces
           </DropdownMenuLabel>
@@ -236,7 +239,7 @@ export function TopBar() {
           onClick={() => setRenameOpen(false)}
         >
           <div
-            className="bg-background rounded-xl border border-border shadow-sm p-3 w-72"
+            className="bg-background rounded-md border border-border shadow-sm p-3 w-72"
             onClick={(e) => e.stopPropagation()}
           >
             <input
@@ -248,18 +251,18 @@ export function TopBar() {
                 if (e.key === "Escape") setRenameOpen(false);
               }}
               placeholder="Workspace name"
-              className="h-9 rounded-lg text-sm w-full border border-border px-3"
+              className="h-9 rounded-md text-sm w-full border border-border px-3"
             />
             <div className="flex justify-end gap-2 mt-3">
               <Button
                 variant="ghost"
                 size="sm"
-                className="rounded-lg"
+                className="rounded-md"
                 onClick={() => setRenameOpen(false)}
               >
                 Cancel
               </Button>
-              <Button size="sm" className="rounded-lg" onClick={handleRename}>
+              <Button size="sm" className="rounded-md" onClick={handleRename}>
                 Rename
               </Button>
             </div>

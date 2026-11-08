@@ -37,7 +37,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="rounded-xl">
+      <AlertDialogContent className="rounded-md">
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
@@ -51,13 +51,13 @@ export function ConfirmDialog({
             }}
             className={
               destructive
-                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-lg mr-auto"
-                : "rounded-lg mr-auto"
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-md mr-auto"
+                : "rounded-md mr-auto"
             }
           >
             {confirmLabel}
           </AlertDialogAction>
-          <AlertDialogCancel className="mt-0 rounded-lg">
+          <AlertDialogCancel className="mt-0 rounded-md">
             {cancelLabel}
           </AlertDialogCancel>
         </AlertDialogFooter>

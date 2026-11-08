@@ -43,7 +43,7 @@ function ImageView({ node }: { node: NodeRecord }) {
       <img
         src={url}
         alt={node.name}
-        className="max-w-full max-h-[80vh] rounded-lg object-contain"
+        className="max-w-full max-h-[80vh] rounded-md object-contain"
       />
     </div>
   );

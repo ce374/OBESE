@@ -80,7 +80,7 @@ export function FilePanel() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search"
-            className="h-8 rounded-lg pl-8 text-[13px]"
+            className="h-8 rounded-md pl-8 text-[13px]"
           />
         </div>
       </div>
@@ -91,7 +91,7 @@ export function FilePanel() {
           variant="outline"
           size="sm"
           onClick={handleCreateFolder}
-          className="h-7 rounded-lg text-xs flex-1"
+          className="h-7 rounded-md text-xs flex-1"
         >
           <FolderPlus className="h-3.5 w-3.5" />
           <span className="ml-1">Folder</span>
@@ -100,7 +100,7 @@ export function FilePanel() {
           variant="outline"
           size="sm"
           onClick={handleCreateNote}
-          className="h-7 rounded-lg text-xs flex-1"
+          className="h-7 rounded-md text-xs flex-1"
         >
           <FilePlus className="h-3.5 w-3.5" />
           <span className="ml-1">Note</span>

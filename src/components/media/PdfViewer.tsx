@@ -138,7 +138,7 @@ export function PdfViewer({ src }: PdfViewerProps) {
     <div className="my-2 inline-flex flex-col items-center">
       <div
         ref={containerRef}
-        className="max-w-full overflow-auto rounded-lg border border-border/60 bg-muted/20"
+        className="max-w-full overflow-auto rounded-md border border-border/60 bg-muted/20"
         style={{ maxHeight: "70vh" }}
       >
         <canvas ref={canvasRef} className="block" />

@@ -115,7 +115,7 @@ export function MoveDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-xl max-w-sm sm:max-w-md">
+      <DialogContent className="rounded-md max-w-sm sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-sm font-medium">
             Move {isFolder ? "folder" : "file"} — {nodeName}
@@ -128,10 +128,10 @@ export function MoveDialog({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search folders"
-              className="h-9 rounded-lg text-sm"
+              className="h-9 rounded-md text-sm"
             />
           </div>
-          <ScrollArea className="h-64 rounded-lg border border-border/60">
+          <ScrollArea className="h-64 rounded-md border border-border/60">
             <div className="py-1">
               {folders.length === 0 && (
                 <div className="px-3 py-6 text-center text-xs text-muted-foreground">
@@ -193,14 +193,14 @@ export function MoveDialog({
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="rounded-lg"
+            className="rounded-md"
           >
             Cancel
           </Button>
           <Button
             onClick={handleMove}
             disabled={selected === null || invalidTarget || moving}
-            className="rounded-lg ml-auto"
+            className="rounded-md ml-auto"
           >
             Move here
           </Button>

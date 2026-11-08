@@ -1,40 +1,56 @@
-// Distraction-free markdown editor.
+// Distraction-free live-preview markdown editor (Obsidian-style).
+// Markdown formatting renders in real time as you type. No read/write toggle.
 // - Prominent title field at top (renames the file in the background).
-// - Spacious writing surface (textarea) with natural scrolling.
-// - Read/Write toggle.
-// - No save button (autosave every 5s + on navigation).
 // - Asset insertion via button and drag-drop from the device.
+// - Autosave every 5s + on navigation (handled by useAutosave).
 
 "use client";
 
 import * as React from "react";
+import {
+  MDXEditor,
+  type MDXEditorMethods,
+  headingsPlugin,
+  listsPlugin,
+  linkPlugin,
+  tablePlugin,
+  quotePlugin,
+  thematicBreakPlugin,
+  markdownShortcutPlugin,
+  imagePlugin,
+} from "@mdxeditor/editor";
+import "@mdxeditor/editor/style.css";
 import { useKbStore } from "@/lib/store";
 import { useAutosave } from "@/hooks/useAutosave";
-import { MarkdownPreview } from "@/components/media/MarkdownPreview";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Eye, Pencil, Paperclip } from "lucide-react";
+import { Paperclip } from "lucide-react";
 import { getExtension, stripExtension } from "@/lib/assets";
 import { AssetPicker } from "./AssetPicker";
 import { toast } from "sonner";
 import type { NodeRecord } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { resolveAssetForEditor } from "@/lib/editorAssets";
 
 interface EditorProps {
   node: NodeRecord;
 }
 
 export function Editor({ node }: EditorProps) {
-  const { renameNode, ingestAssetFile } = useKbStore();
+  const { renameNode, ingestAssetFile, nodes } = useKbStore();
   const [content, setContent] = React.useState(node.textContent || "");
   const [title, setTitle] = React.useState(
     getExtension(node.name) ? stripExtension(node.name) : node.name
   );
-  const [view, setView] = React.useState<"write" | "read">("write");
   const [pickerOpen, setPickerOpen] = React.useState(false);
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const editorRef = React.useRef<MDXEditorMethods>(null);
   const baseVersion = node.contentVersion;
   const lastLoadedIdRef = React.useRef<string>(node.id);
+
+  // Node lookup map for resolving asset references in the editor.
+  const nodeMap = React.useMemo(() => {
+    const m = new Map<string, NodeRecord>();
+    for (const n of nodes) m.set(n.id, n);
+    return m;
+  }, [nodes]);
 
   // When the node changes, load its content/title fresh.
   React.useEffect(() => {
@@ -44,13 +60,10 @@ export function Editor({ node }: EditorProps) {
       setTitle(
         getExtension(node.name) ? stripExtension(node.name) : node.name
       );
-      setView("write");
     }
   }, [node.id, node.textContent, node.name]);
 
-  // Autosave: debounced 5s writes + force-save on unmount/navigation are
-  // handled inside the hook. The Editor is keyed by node id in the page, so
-  // switching notes unmounts this instance and triggers the save.
+  // Autosave: debounced 5s writes + force-save on unmount/navigation.
   useAutosave({
     nodeId: node.id,
     content,
@@ -72,26 +85,16 @@ export function Editor({ node }: EditorProps) {
       });
     }, 600);
     return () => clearTimeout(t);
-  }, [title, node.id]);
+  }, [title, node.id, node.name, renameNode]);
 
   const insertAtCursor = (text: string) => {
-    const ta = textareaRef.current;
-    if (!ta) {
+    const editor = editorRef.current;
+    if (editor) {
+      editor.focus();
+      editor.insertMarkdown(text);
+    } else {
       setContent((c) => c + (c && !c.endsWith("\n") ? "\n" : "") + text);
-      return;
     }
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const before = content.slice(0, start);
-    const after = content.slice(end);
-    const prefix = before && !before.endsWith("\n") ? "\n" : "";
-    const next = before + prefix + text + after;
-    setContent(next);
-    requestAnimationFrame(() => {
-      ta.focus();
-      const pos = (before + prefix + text).length;
-      ta.setSelectionRange(pos, pos);
-    });
   };
 
   const handleDrop = async (e: React.DragEvent) => {
@@ -115,6 +118,15 @@ export function Editor({ node }: EditorProps) {
     }
   };
 
+  // Image preview handler resolves asset: refs to blob URLs (images) or
+  // placeholder SVGs (audio/pdf/documents).
+  const imagePreviewHandler = React.useCallback(
+    async (src: string) => {
+      return resolveAssetForEditor(src, nodeMap);
+    },
+    [nodeMap]
+  );
+
   return (
     <div
       className="flex flex-col h-full"
@@ -122,7 +134,7 @@ export function Editor({ node }: EditorProps) {
       onDragOver={handleDragOver}
     >
       {/* Title */}
-      <div className="px-5 sm:px-8 pt-5 pb-2">
+      <div className="px-5 sm:px-8 pt-5 pb-1">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -132,65 +144,43 @@ export function Editor({ node }: EditorProps) {
         />
       </div>
 
-      {/* Tiny inline toolbar (asset insert + view toggle) */}
-      <div className="px-5 sm:px-8 pb-2 flex items-center gap-1.5">
+      {/* Tiny inline toolbar (asset insert only) */}
+      <div className="px-5 sm:px-8 pb-1 flex items-center gap-1.5">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setPickerOpen(true)}
-          className="h-7 rounded-lg text-xs text-muted-foreground hover:text-foreground px-2"
+          className="h-7 rounded-md text-xs text-muted-foreground hover:text-foreground px-2"
         >
           <Paperclip className="h-3.5 w-3.5" />
           <span className="ml-1">Insert</span>
         </Button>
-        <div className="ml-auto flex items-center gap-1 rounded-lg bg-muted/60 p-0.5">
-          <button
-            onClick={() => setView("write")}
-            className={cn(
-              "h-6 px-2 rounded-md text-xs flex items-center gap-1 transition-colors",
-              view === "write"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Pencil className="h-3 w-3" />
-            Write
-          </button>
-          <button
-            onClick={() => setView("read")}
-            className={cn(
-              "h-6 px-2 rounded-md text-xs flex items-center gap-1 transition-colors",
-              view === "read"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Eye className="h-3 w-3" />
-            Read
-          </button>
-        </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {view === "write" ? (
-          <Textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder=""
-            className="w-full h-full resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-[15px] leading-7 text-foreground/90 font-normal px-5 sm:px-8 py-4 min-h-[60vh] rounded-none"
-            style={{
-              fontFamily:
-                "var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif",
-            }}
-            spellCheck
-          />
-        ) : (
-          <div className="px-5 sm:px-8 py-4 max-w-3xl">
-            <MarkdownPreview content={content} />
-          </div>
-        )}
+      {/* Live-preview editor */}
+      <div className="flex-1 overflow-y-auto px-1 sm:px-4 pb-10">
+        <MDXEditor
+          ref={editorRef}
+          markdown={content}
+          onChange={(md) => setContent(md)}
+          plugins={[
+            headingsPlugin(),
+            listsPlugin(),
+            linkPlugin(),
+            tablePlugin(),
+            quotePlugin(),
+            thematicBreakPlugin(),
+            markdownShortcutPlugin(),
+            imagePlugin({
+              imagePreviewHandler,
+              disableImageResize: false,
+              allowSetImageDimensions: true,
+            }),
+          ]}
+          placeholder=""
+          contentEditableClassName="kb-editor-content"
+          className="kb-editor-root"
+        />
       </div>
 
       <AssetPicker

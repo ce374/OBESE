@@ -513,6 +513,62 @@ export function clearBlobUrlCache(): void {
     URL.revokeObjectURL(url);
   }
   blobUrlCache.clear();
+  for (const url of thumbUrlCache.values()) {
+    URL.revokeObjectURL(url);
+  }
+  thumbUrlCache.clear();
+}
+
+// Compressed thumbnail generation for image assets.
+// Generates a small JPEG preview (max ~240px on the long edge) cached by node
+// id, so grids of many assets stay responsive without decoding full images.
+const thumbUrlCache = new Map<string, string>();
+const thumbPromiseCache = new Map<string, Promise<string | null>>();
+
+export async function getAssetThumbnailUrl(
+  nodeId: string
+): Promise<string | null> {
+  if (thumbUrlCache.has(nodeId)) return thumbUrlCache.get(nodeId)!;
+  if (thumbPromiseCache.has(nodeId)) return thumbPromiseCache.get(nodeId)!;
+  const p = (async (): Promise<string | null> => {
+    const blob = await getBlob(nodeId);
+    if (!blob) return null;
+    try {
+      const url = URL.createObjectURL(blob);
+      const img = await loadImage(url);
+      URL.revokeObjectURL(url);
+      const maxDim = 240;
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(img, 0, 0, w, h);
+      const thumbBlob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", 0.7)
+      );
+      if (!thumbBlob) return null;
+      const thumbUrl = URL.createObjectURL(thumbBlob);
+      thumbUrlCache.set(nodeId, thumbUrl);
+      return thumbUrl;
+    } catch {
+      return null;
+    }
+  })();
+  thumbPromiseCache.set(nodeId, p);
+  return p;
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
 }
 
 // Resolve all asset references inside markdown content to their node ids.

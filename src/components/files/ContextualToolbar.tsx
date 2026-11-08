@@ -1,6 +1,7 @@
 // Compact, vertically-aligned contextual toolbar that appears when a folder or
-// file is held (long-pressed). For folders: Move, New folder, New note. For
-// files: Move. Clicks are not hijacked so the row can still be opened normally.
+// file is held (long-pressed). For folders: Move, Rename, New folder, New note.
+// For files: Move, Rename. Clicks are not hijacked so the row can still be
+// opened normally.
 
 "use client";
 
@@ -10,12 +11,13 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
-import { Move, FolderPlus, FilePlus } from "lucide-react";
+import { Move, FolderPlus, FilePlus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MoveDialog } from "./MoveDialog";
 import { useKbStore } from "@/lib/store";
 import { useLongPress } from "@/hooks/useLongPress";
+import { getExtension, stripExtension } from "@/lib/assets";
 import type { NodeRecord } from "@/lib/types";
 
 interface ContextualToolbarProps {
@@ -31,29 +33,50 @@ export function ContextualToolbar({
 }: ContextualToolbarProps) {
   const [open, setOpen] = React.useState(false);
   const [moveOpen, setMoveOpen] = React.useState(false);
-  const [createOpen, setCreateOpen] = React.useState<null | "folder" | "note">(
-    null
-  );
-  const [createName, setCreateName] = React.useState("");
-  const { createFolder, createNote, openNode } = useKbStore();
+  const [dialogMode, setDialogMode] = React.useState<
+    null | "folder" | "note" | "rename"
+  >(null);
+  const [dialogValue, setDialogValue] = React.useState("");
+  const { createFolder, createNote, renameNode, openNode } = useKbStore();
 
   const longPress = useLongPress({
     onLongPress: () => setOpen(true),
     onClick,
   });
 
-  const handleCreate = async () => {
-    const name = createName.trim();
-    if (createOpen === "folder") {
-      await createFolder(node.id, name || "New Folder");
-    } else if (createOpen === "note") {
-      const note = await createNote(node.id, name || "Untitled");
+  const handleDialogConfirm = async () => {
+    const value = dialogValue.trim();
+    if (dialogMode === "folder") {
+      await createFolder(node.id, value || "New Folder");
+    } else if (dialogMode === "note") {
+      const note = await createNote(node.id, value || "Untitled");
       openNode(note.id);
+    } else if (dialogMode === "rename") {
+      if (value) await renameNode(node, value);
     }
-    setCreateOpen(null);
-    setCreateName("");
+    setDialogMode(null);
+    setDialogValue("");
     setOpen(false);
   };
+
+  const startRename = () => {
+    setDialogValue(
+      node.type === "folder"
+        ? node.name
+        : getExtension(node.name)
+          ? stripExtension(node.name)
+          : node.name
+    );
+    setDialogMode("rename");
+    setOpen(false);
+  };
+
+  const placeholder =
+    dialogMode === "folder"
+      ? "Folder name"
+      : dialogMode === "note"
+        ? "Note name"
+        : "New name";
 
   return (
     <>
@@ -67,7 +90,7 @@ export function ContextualToolbar({
           side="right"
           align="start"
           sideOffset={6}
-          className="w-auto p-1 rounded-lg border border-border/70 shadow-sm"
+          className="w-auto p-1 rounded-md border border-border/70 shadow-sm"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <div className="flex flex-col gap-0.5">
@@ -79,14 +102,19 @@ export function ContextualToolbar({
                 setOpen(false);
               }}
             />
+            <ToolbarButton
+              icon={<Pencil className="h-3.5 w-3.5" />}
+              label="Rename"
+              onClick={startRename}
+            />
             {node.type === "folder" && (
               <>
                 <ToolbarButton
                   icon={<FolderPlus className="h-3.5 w-3.5" />}
                   label="New folder"
                   onClick={() => {
-                    setCreateOpen("folder");
-                    setCreateName("");
+                    setDialogValue("");
+                    setDialogMode("folder");
                     setOpen(false);
                   }}
                 />
@@ -94,8 +122,8 @@ export function ContextualToolbar({
                   icon={<FilePlus className="h-3.5 w-3.5" />}
                   label="New note"
                   onClick={() => {
-                    setCreateOpen("note");
-                    setCreateName("");
+                    setDialogValue("");
+                    setDialogMode("note");
                     setOpen(false);
                   }}
                 />
@@ -113,39 +141,41 @@ export function ContextualToolbar({
         isFolder={node.type === "folder"}
       />
 
-      {createOpen && (
+      {dialogMode && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-background/40"
-          onClick={() => setCreateOpen(null)}
+          onClick={() => setDialogMode(null)}
         >
           <div
-            className="bg-background rounded-xl border border-border shadow-sm p-3 w-72"
+            className="bg-background rounded-md border border-border shadow-sm p-3 w-72"
             onClick={(e) => e.stopPropagation()}
           >
             <Input
               autoFocus
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
+              value={dialogValue}
+              onChange={(e) => setDialogValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreate();
-                if (e.key === "Escape") setCreateOpen(null);
+                if (e.key === "Enter") handleDialogConfirm();
+                if (e.key === "Escape") setDialogMode(null);
               }}
-              placeholder={
-                createOpen === "folder" ? "Folder name" : "Note name"
-              }
-              className="h-9 rounded-lg text-sm"
+              placeholder={placeholder}
+              className="h-9 rounded-md text-sm"
             />
             <div className="flex justify-end gap-2 mt-3">
               <Button
                 variant="ghost"
                 size="sm"
-                className="rounded-lg"
-                onClick={() => setCreateOpen(null)}
+                className="rounded-md"
+                onClick={() => setDialogMode(null)}
               >
                 Cancel
               </Button>
-              <Button size="sm" className="rounded-lg" onClick={handleCreate}>
-                Create
+              <Button
+                size="sm"
+                className="rounded-md"
+                onClick={handleDialogConfirm}
+              >
+                {dialogMode === "rename" ? "Rename" : "Create"}
               </Button>
             </div>
           </div>

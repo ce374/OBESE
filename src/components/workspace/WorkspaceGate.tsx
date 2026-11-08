@@ -19,6 +19,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -174,7 +175,10 @@ export function WorkspaceGate() {
 
   if (isFirstLaunch) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center px-6">
+      <div className="relative flex min-h-screen flex-col items-center justify-center px-6">
+        <div className="absolute top-3 right-3">
+          <ThemeToggle />
+        </div>
         <div className="w-full max-w-sm">
           <div className="flex items-center gap-2">
             <Input
@@ -185,13 +189,13 @@ export function WorkspaceGate() {
                 if (e.key === "Enter") handleCreate();
               }}
               placeholder="Workspace name"
-              className="h-11 rounded-lg text-[15px]"
+              className="h-11 rounded-md text-[15px]"
               disabled={creating}
             />
             <Button
               onClick={handleCreate}
               disabled={!name.trim() || creating}
-              className="h-11 rounded-lg px-5"
+              className="h-11 rounded-md px-5"
             >
               <FolderPlus className="h-4 w-4" />
               <span className="ml-1.5">Create</span>
@@ -214,7 +218,10 @@ export function WorkspaceGate() {
   const deletingWs = workspaces.find((w) => w.id === deleteId);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-6 py-10">
+    <div className="relative flex min-h-screen flex-col items-center justify-center px-6 py-10">
+      <div className="absolute top-3 right-3">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-md">
         <div className="flex items-center gap-2 mb-5">
           <Input
@@ -224,20 +231,20 @@ export function WorkspaceGate() {
               if (e.key === "Enter") handleCreate();
             }}
             placeholder="Workspace name"
-            className="h-10 rounded-lg text-sm"
+            className="h-10 rounded-md text-sm"
             disabled={creating}
           />
           <Button
             onClick={handleCreate}
             disabled={!name.trim() || creating}
             size="sm"
-            className="h-10 rounded-lg"
+            className="h-10 rounded-md"
           >
             <FolderPlus className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="rounded-xl border border-border/70 divide-y divide-border/60 overflow-hidden bg-card">
+        <div className="rounded-md border border-border/70 divide-y divide-border/60 overflow-hidden bg-card">
           {workspaces.map((ws) => (
             <div
               key={ws.id}
@@ -273,7 +280,7 @@ export function WorkspaceGate() {
                       <ChevronRight className="h-4 w-4 rotate-90" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="rounded-lg">
+                  <DropdownMenuContent align="end" className="rounded-md">
                     <DropdownMenuItem
                       onClick={() => {
                         setRenamingId(ws.id);

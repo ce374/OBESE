@@ -55,7 +55,7 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
               <img
                 src={s}
                 alt={alt || ""}
-                className="my-2 rounded-lg max-w-[520px] w-full h-auto"
+                className="my-2 rounded-md max-w-[520px] w-full h-auto"
               />
             );
           },
@@ -127,7 +127,7 @@ function AssetImage({ id, alt }: { id: string; alt: string }) {
       src={url}
       alt={alt}
       loading="lazy"
-      className="my-2 rounded-lg max-w-[520px] w-full h-auto"
+      className="my-2 rounded-md max-w-[520px] w-full h-auto"
     />
   );
 }
@@ -168,13 +168,13 @@ function AssetDocument({ node }: { id: string; node: NodeRecord }) {
   const isMd = (node.mime || "").includes("markdown");
   if (isMd) {
     return (
-      <div className="my-2 rounded-lg border border-border/60 p-3 bg-muted/20 max-w-[640px]">
+      <div className="my-2 rounded-md border border-border/60 p-3 bg-muted/20 max-w-[640px]">
         <MarkdownPreview content={content} />
       </div>
     );
   }
   return (
-    <pre className="my-2 rounded-lg border border-border/60 p-3 bg-muted/20 text-xs whitespace-pre-wrap break-words max-w-[640px] font-mono">
+    <pre className="my-2 rounded-md border border-border/60 p-3 bg-muted/20 text-xs whitespace-pre-wrap break-words max-w-[640px] font-mono">
       {content}
     </pre>
   );
