@@ -1,7 +1,7 @@
 // Compact, vertically-aligned contextual toolbar that appears when a folder or
-// file is held (long-pressed). For folders: Move, Rename, New folder, New note.
-// For files: Move, Rename. Clicks are not hijacked so the row can still be
-// opened normally.
+// file is held (long-pressed). For folders: Move, Rename, Delete, New folder,
+// New note. For files: Move, Rename, Delete. Clicks are not hijacked so the
+// row can still be opened normally.
 
 "use client";
 
@@ -11,10 +11,17 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
-import { Move, FolderPlus, FilePlus, Pencil } from "lucide-react";
+import {
+  Move,
+  FolderPlus,
+  FilePlus,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MoveDialog } from "./MoveDialog";
+import { ConfirmDialog } from "@/components/workspace/ConfirmDialog";
 import { useKbStore } from "@/lib/store";
 import { useLongPress } from "@/hooks/useLongPress";
 import { getExtension, stripExtension } from "@/lib/assets";
@@ -33,11 +40,13 @@ export function ContextualToolbar({
 }: ContextualToolbarProps) {
   const [open, setOpen] = React.useState(false);
   const [moveOpen, setMoveOpen] = React.useState(false);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [dialogMode, setDialogMode] = React.useState<
     null | "folder" | "note" | "rename"
   >(null);
   const [dialogValue, setDialogValue] = React.useState("");
-  const { createFolder, createNote, renameNode, openNode } = useKbStore();
+  const { createFolder, createNote, renameNode, deleteNode, openNode } =
+    useKbStore();
 
   const longPress = useLongPress({
     onLongPress: () => setOpen(true),
@@ -71,12 +80,20 @@ export function ContextualToolbar({
     setOpen(false);
   };
 
+  const handleDelete = async () => {
+    await deleteNode(node);
+    setDeleteOpen(false);
+    setOpen(false);
+  };
+
   const placeholder =
     dialogMode === "folder"
       ? "Folder name"
       : dialogMode === "note"
         ? "Note name"
         : "New name";
+
+  const isFolder = node.type === "folder";
 
   return (
     <>
@@ -107,7 +124,7 @@ export function ContextualToolbar({
               label="Rename"
               onClick={startRename}
             />
-            {node.type === "folder" && (
+            {isFolder && (
               <>
                 <ToolbarButton
                   icon={<FolderPlus className="h-3.5 w-3.5" />}
@@ -129,6 +146,15 @@ export function ContextualToolbar({
                 />
               </>
             )}
+            <ToolbarButton
+              icon={<Trash2 className="h-3.5 w-3.5" />}
+              label="Delete"
+              danger
+              onClick={() => {
+                setDeleteOpen(true);
+                setOpen(false);
+              }}
+            />
           </div>
         </PopoverContent>
       </Popover>
@@ -138,7 +164,20 @@ export function ContextualToolbar({
         onOpenChange={setMoveOpen}
         nodeId={node.id}
         nodeName={node.name}
-        isFolder={node.type === "folder"}
+        isFolder={isFolder}
+      />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete ${isFolder ? "folder" : "file"}`}
+        description={
+          isFolder
+            ? `Delete "${node.name}" and everything inside it? This cannot be undone.`
+            : `Delete "${node.name}"? This cannot be undone.`
+        }
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
       />
 
       {dialogMode && (
@@ -189,15 +228,21 @@ function ToolbarButton({
   icon,
   label,
   onClick,
+  danger,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
+  danger?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-md hover:bg-muted transition-colors text-foreground/90 whitespace-nowrap"
+      className={`flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-md hover:bg-muted transition-colors whitespace-nowrap ${
+        danger
+          ? "text-destructive hover:text-destructive"
+          : "text-foreground/90"
+      }`}
     >
       {icon}
       <span>{label}</span>
