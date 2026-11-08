@@ -43,6 +43,12 @@ interface KbState {
   panelOpen: boolean;
   searchQuery: string;
 
+  // Batch mode: when true, import actions write to IndexedDB and mutate the
+  // nodes array in place but skip the expensive tree rebuild + re-render. The
+  // tree is rebuilt once when batch mode is turned off.
+  batchMode: boolean;
+  setBatchMode: (on: boolean) => void;
+
   // Actions
   loadWorkspaces: () => Promise<void>;
   selectWorkspace: (id: string) => Promise<void>;
@@ -90,6 +96,9 @@ export const useKbStore = create<KbState>((set, get) => ({
   activeNodeId: null,
   panelOpen: true,
   searchQuery: "",
+  batchMode: false,
+
+  setBatchMode: (on) => set({ batchMode: on }),
 
   loadWorkspaces: async () => {
     const ws = await getAllWorkspaces();
@@ -163,7 +172,11 @@ export const useKbStore = create<KbState>((set, get) => ({
     const nodes = get().nodes;
     const wsId = get().activeWorkspaceId!;
     const folder = await fsCreateFolder(wsId, parentId, name, nodes);
-    const updated = [...get().nodes, folder];
+    if (get().batchMode) {
+      nodes.push(folder);
+      return folder;
+    }
+    const updated = [...nodes, folder];
     set({ nodes: updated, tree: buildTree(updated) });
     return folder;
   },
@@ -214,6 +227,10 @@ export const useKbStore = create<KbState>((set, get) => ({
     const node = asAsset
       ? await ingestTextAsset(wsId, parentId, name, text, get().nodes)
       : await ingestNote(wsId, parentId, name, text, get().nodes);
+    if (get().batchMode) {
+      get().nodes.push(node);
+      return node;
+    }
     const updated = [...get().nodes, node];
     set({ nodes: updated, tree: buildTree(updated) });
     return node;
@@ -222,6 +239,10 @@ export const useKbStore = create<KbState>((set, get) => ({
   ingestImportedBinary: async (parentId, name, bytes, mime) => {
     const wsId = get().activeWorkspaceId!;
     const node = await ingestBinaryAsset(wsId, parentId, name, bytes, mime, get().nodes);
+    if (get().batchMode) {
+      get().nodes.push(node);
+      return node;
+    }
     const updated = [...get().nodes, node];
     set({ nodes: updated, tree: buildTree(updated) });
     return node;

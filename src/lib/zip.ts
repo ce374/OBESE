@@ -119,12 +119,20 @@ export async function importWorkspaceZip(
   const folderByPath = new Map<string, NodeRecord>();
   // Root = null parent.
   folderByPath.set("", { id: "", parentId: null } as unknown as NodeRecord);
-  // Pre-register the Assets structure so imported assets can be routed.
+  // Pre-register the Assets structure (folder + Audio/Images/Documents
+  // subfolders) so imported assets route into the existing folders instead of
+  // creating duplicates.
   const assetsFolder = nodes.find(
     (n) => n.name === ASSETS_FOLDER_NAME && n.parentId === null
   );
   if (assetsFolder) {
     folderByPath.set(ASSETS_FOLDER_NAME, assetsFolder);
+    const subfolders = nodes.filter(
+      (n) => n.parentId === assetsFolder.id && n.type === "folder"
+    );
+    for (const sub of subfolders) {
+      folderByPath.set(`${ASSETS_FOLDER_NAME}/${sub.name}`, sub);
+    }
   }
 
   // Determine if a path is inside an Assets folder anywhere in the zip.

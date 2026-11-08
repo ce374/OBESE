@@ -68,6 +68,7 @@ export function TopBar() {
     try {
       const targetWs =
         importMode === "into" ? activeWs || null : null;
+      useKbStore.getState().setBatchMode(true);
       const { workspace, importedCount } = await importWorkspaceZip(
         file,
         targetWs,
@@ -88,6 +89,7 @@ export function TopBar() {
           return await getWorkspaceNodes(wsId);
         }
       );
+      useKbStore.getState().setBatchMode(false);
       await loadWorkspaces();
       if (importMode === "new") {
         await selectWorkspace(workspace.id);
@@ -96,6 +98,7 @@ export function TopBar() {
       }
       toast.success(`Imported ${importedCount} item${importedCount === 1 ? "" : "s"}.`);
     } catch (err) {
+      useKbStore.getState().setBatchMode(false);
       console.error(err);
       toast.error("Import failed.");
     }

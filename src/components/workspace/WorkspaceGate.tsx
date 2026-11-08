@@ -104,6 +104,7 @@ export function WorkspaceGate() {
       const targetWs = importTarget
         ? workspaces.find((w) => w.id === importTarget) || null
         : null;
+      useKbStore.getState().setBatchMode(true);
       const { workspace, importedCount } = await importWorkspaceZip(
         file,
         targetWs,
@@ -129,6 +130,7 @@ export function WorkspaceGate() {
           return await getWorkspaceNodes(wsId);
         }
       );
+      useKbStore.getState().setBatchMode(false);
       // If a new workspace was created during import, refresh list & select it.
       await loadWorkspaces();
       if (!targetWs) {
@@ -138,6 +140,7 @@ export function WorkspaceGate() {
       }
       toast.success(`Imported ${importedCount} item${importedCount === 1 ? "" : "s"}.`);
     } catch (err) {
+      useKbStore.getState().setBatchMode(false);
       toast.error("Import failed.");
       console.error(err);
     } finally {
