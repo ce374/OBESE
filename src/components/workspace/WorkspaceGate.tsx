@@ -109,6 +109,9 @@ export function WorkspaceGate() {
         targetWs,
         async (name) => {
           const ws = await createWorkspace(name);
+          // Select the new workspace immediately so store actions (createFolder,
+          // ingest) target it rather than the previously active workspace.
+          await selectWorkspace(ws.id);
           return ws;
         },
         async (parentId, name, text, asAsset) => {

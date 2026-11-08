@@ -71,7 +71,12 @@ export function TopBar() {
       const { workspace, importedCount } = await importWorkspaceZip(
         file,
         targetWs,
-        async (name) => createWorkspace(name),
+        async (name) => {
+          const ws = await createWorkspace(name);
+          // Select the new workspace so store actions target it.
+          await selectWorkspace(ws.id);
+          return ws;
+        },
         async (parentId, name, text, asAsset) =>
           ingestImportedText(parentId, name, text, asAsset),
         async (parentId, name, bytes, mime) =>

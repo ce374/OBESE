@@ -240,13 +240,13 @@ export async function importWorkspaceZip(
     assetNameToId.set(fileName, node.id);
   }
 
-  // Rewrite path-based asset references in markdown text to asset:<id>.
-  // Matches ![alt](path) and [text](path) where path is a relative file path
-  // (not http/data/mailto/asset:).
+  // Rewrite path-based image references in markdown text to asset:<id>.
+  // Only image references (![alt](path)) are rewritten; regular links to
+  // documents are left as-is (informational text).
   const rewriteRefs = (text: string): string => {
     return text.replace(
-      /(!?\[([^\]]*)\]\()([^)]+)(\))/g,
-      (full, pre, alt, url, post) => {
+      /!\[([^\]]*)\]\(([^)]+)\)/g,
+      (full, alt, url) => {
         const trimmed = url.trim();
         if (
           /^(https?:|data:|mailto:|tel:|asset:)/i.test(trimmed) ||
@@ -258,12 +258,12 @@ export async function importWorkspaceZip(
         let p = trimmed.replace(/^\.\//, "").replace(/^\//, "");
         // Try exact path match.
         if (assetPathToId.has(p)) {
-          return `${pre}asset:${assetPathToId.get(p)}${post}`;
+          return `![${alt}](asset:${assetPathToId.get(p)})`;
         }
         // Try matching by bare filename.
         const base = p.split("/").pop() || p;
         if (assetNameToId.has(base)) {
-          return `${pre}asset:${assetNameToId.get(base)}${post}`;
+          return `![${alt}](asset:${assetNameToId.get(base)})`;
         }
         return full;
       }
